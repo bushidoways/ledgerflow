@@ -1,0 +1,19 @@
+{
+  "name": "dompet-palsu-bot",
+  "version": "2.1.0",
+  "description": "Multi-Account Financial Ledger & Telegram Bot powered by Google Apps Script and Google Gemini AI",
+  "main": "script.js",
+  "scripts": {
+    "test": "node tests/test_engine.js"
+  },
+  "keywords": [
+    "telegram-bot",
+    "google-apps-script",
+    "personal-finance",
+    "gemini-ai",
+    "ledger",
+    "budgeting"
+  ],
+  "author": "",
+  "license": "MIT"
+}
