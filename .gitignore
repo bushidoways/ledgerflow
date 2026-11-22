@@ -1,0 +1,30 @@
+# ==========================================
+# DOMPET PALSU BOT - .gitignore
+# ==========================================
+
+# Folder cadangan lokal yang berisi kredensial/token asli
+Script asli/
+*.backup.js
+*.local.js
+
+# Environment & rahasia
+.env
+.env.*
+*.pem
+*.key
+
+# Google clasp credentials (jika memakai clasp)
+.clasp.json
+.clasprc.json
+
+# Node & Package Managers (jika menjalankan pengujian lokal)
+node_modules/
+package-lock.json
+
+# Sistem Operasi & Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
