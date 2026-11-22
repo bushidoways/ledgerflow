@@ -1,210 +1,168 @@
-<div align="center">
+# LedgerFlow (Dompet Palsu Bot)
 
-# 👛 LedgerFlow
-### *(Dompet Palsu Bot v2.1)*
+Bot Telegram untuk pembukuan keuangan multi-akun pribadi berbasis Google Apps Script dan Google Spreadsheet, terintegrasi dengan Google Gemini AI untuk pemrosesan teks alami.
 
-**Personal Multi-Account Financial Ledger & Telegram Bot**  
-*Didukung oleh Google Apps Script, Google Sheets, dan Google Gemini AI*
-
-[![Google Apps Script](https://img.shields.io/badge/Runtime-Google%20Apps%20Script%20(V8)-4285F4?logo=google&logoColor=white)](https://developers.google.com/apps-script)
-[![Google Gemini AI](https://img.shields.io/badge/AI-Google%20Gemini%202.5%20%2F%202.0%20Flash-8E75B2?logo=googlegemini&logoColor=white)](https://ai.google.dev/)
-[![Telegram Bot API](https://img.shields.io/badge/Platform-Telegram%20Bot%20API-24A1DE?logo=telegram&logoColor=white)](https://core.telegram.org/bots)
-[![Tests Passing](https://img.shields.io/badge/Tests-10%2F10%20PASS-brightgreen?logo=node.js&logoColor=white)](tests/test_engine.js)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-<p align="center">
-  <b>100% Serverless & Gratis</b> • <b>Data Milik Anda Sendiri (Private Google Sheets)</b> • <b>Pencatatan Bahasa Alami</b> • <b>Visualisasi Grafik Otomatis</b>
-</p>
+Proyek ini dirancang untuk mereka yang ingin mencatat arus kas harian langsung dari ruang percakapan Telegram tanpa bergantung pada aplikasi pihak ketiga berbayar. Seluruh data transaksi, konfigurasi anggaran, dan histori saldo tersimpan di Google Drive milik pengguna sendiri.
 
 ---
 
-</div>
+## Masalah yang Diselesaikan
 
-## 📌 Mengapa LedgerFlow?
+Mencatat pengeluaran harian sering kali terhambat oleh antarmuka aplikasi yang lambat, kewajiban menghubungkan rekening bank pribadi ke peladen luar, atau biaya langganan bulanan.
 
-Banyak aplikasi pengatur keuangan mengharuskan Anda membayar biaya langganan bulanan atau meminta akses ke akun bank Anda di server pihak ketiga. 
-
-**LedgerFlow** hadir dengan pendekatan berbeda:
-- 🔒 **Kedaulatan Data**: Basis data pembukuan Anda 100% tersimpan di Google Drive / Google Spreadsheet pribadi Anda. Tidak ada server perantara yang menampung data finansial Anda.
-- ⚡ **Tanpa Biaya Server ($0/bulan)**: Berjalan langsung di atas infrastruktur Google Apps Script (GAS) gratis.
-- 💬 **Antarmuka Chat Telegram**: Catat pengeluaran saat bepergian semudah mengirim pesan ke teman.
-- 🧠 **Pemrosesan Bahasa Alami**: Memahami pesan seperti *"makan siang 25rb pakai tunai"* atau *"transfer bca ke gopay 100rb + admin 2500"* menggunakan Google Gemini AI dengan fallback parser regex lokal saat offline.
-- ⚖️ **Sistem Ledger & Audit Trail Ketat**: Saldo dihitung murni dari riwayat mutasi transaksi (*Double-Entry principles*). Mendukung pembatalan transaksi (`/undo`), pengubahan nominal (`/edit`), serta koreksi fisik tanpa merusak riwayat transaksi lampau.
+LedgerFlow mengambil pendekatan mandiri:
+- Data berada penuh di akun Google Spreadsheet pribadi. Tidak ada basis data pihak ketiga yang mengumpulkan informasi finansial Anda.
+- Tanpa biaya infrastruktur. Berjalan langsung di atas Google Apps Script dengan kuota bawaan akun Google.
+- Input transaksi fleksibel. Pengguna dapat mengetik perintah ringkas dalam bahasa percakapan sehari-hari.
+- Perhitungan saldo berbasis riwayat mutasi, bukan angka statis yang ditimpa manual.
 
 ---
 
-## ✨ Fitur Unggulan
+## Logika Pencatatan dan Fitur Utama
 
-| Fitur | Deskripsi |
-| :--- | :--- |
-| 🏦 **Multi-Akun & Saldo Awal** | Mendukung Tunai, BCA, Mandiri, BRI, BNI, BSI, Jago, SeaBank, GoPay, OVO, ShopeePay, DANA, dsb. Saldo dihitung sejak titik awal penetapan akun. |
-| 🔄 **Pemisahan Biaya Admin Otomatis** | Pesan *"Tf BCA ke GoPay 100rb + admin 2500"* otomatis dipecah menjadi transaksi transfer pokok (100k) dan pengeluaran biaya admin (2.5k). |
-| ⚠️ **Peringatan Saldo Kurang (Overdraft Guard)** | Jika saldo akun tercatat tidak mencukupi, bot tidak memindahkan akun diam-diam, melainkan menampilkan tombol konfirmasi interaktif. |
-| ⚖️ **Koreksi Saldo Fisik** | Ketik *"Saldo tunai sebenarnya 420rb karena jajan pasar"*, bot akan menghitung selisih dan mencatat transaksi penyesuaian (*adjustment*) resmi. |
-| 📊 **Grafik Tren & Evaluasi Bulanan** | Perintah `/bulan` menghasilkan grafik garis pengeluaran harian vs target budget dan diagram donat proporsi kategori via QuickChart API. |
-| 🎭 **Persona Asisten Keuangan** | Pilihan persona respons AI: **Satir** (sarkas-humoris ala anak tongkrongan yang mengingatkan boncos) atau **Santai** (suportif, bijak, dan ramah). |
+### 1. Perhitungan Saldo Tercatat
+Saldo setiap akun dihitung menggunakan rumus riwayat mutasi aktif sejak titik awal saldo ditetapkan:
+
+Saldo Akhir = Saldo Awal + Pemasukan - Pengeluaran + Transfer Masuk - Transfer Keluar +/- Penyesuaian
+
+Jika terjadi pembatalan transaksi melalui `/undo` atau perubahan nominal melalui `/edit`, sistem menghitung ulang saldo akun secara otomatis.
+
+### 2. Multi-Akun dan Deteksi Biaya Admin
+Sistem mengenali berbagai rekening bank dan dompet digital (Tunai, BCA, Mandiri, BRI, BNI, BSI, Jago, SeaBank, GoPay, OVO, ShopeePay, DANA). 
+
+Ketika mencatat transfer antar-akun yang memuat biaya administrasi (contoh: "Transfer BCA ke GoPay 100rb + admin 2500"), sistem secara otomatis membaginya menjadi dua catatan:
+1. Transaksi transfer pokok sebesar 100.000 (mengurangi BCA, menambah GoPay).
+2. Transaksi pengeluaran biaya admin sebesar 2.500 (pos pengeluaran Biaya Admin pada akun BCA).
+
+### 3. Konfirmasi Akun Ambigu dan Peringatan Saldo Kurang
+- Jika pengguna mencatat pengeluaran tanpa menyebutkan akun dan belum mengatur akun baku, bot akan menanyakan akun yang digunakan melalui tombol interaktif.
+- Jika nominal pengeluaran melebihi saldo tercatat pada akun terkait, bot akan memberikan peringatan dan meminta konfirmasi sebelum saldo tercatat menjadi minus.
+
+### 4. Koreksi Saldo Fisik (Audit Trail)
+Jika uang fisik atau mutasi riil berbeda dengan catatan (misal karena lupa mencatat jajan kecil), pengguna cukup mengetik "Saldo tunai sebenarnya 420rb karena lupa catat parkir". Bot akan menghitung selisih dan mencatatnya sebagai transaksi Penyesuaian tanpa menghapus riwayat sebelumnya.
+
+### 5. Rekap Harian dan Evaluasi Bulanan
+- Perintah `/rekap` menyajikan ringkasan pengeluaran hari ini terhadap target anggaran harian.
+- Perintah `/bulan` menyusun analisis bulanan lengkap dengan grafik garis tren harian dan diagram proporsi kategori belanja menggunakan integrasi QuickChart API.
 
 ---
 
-## 🛠️ Alur Arsitektur
+## Alur Sistem
 
 ```mermaid
 flowchart LR
-    User[Pengguna Telegram] -->|Kirim Pesan / Klik Tombol| TG[Telegram Bot API]
-    TG -->|Webhook HTTPS POST| GAS[Google Apps Script\nEngine & LockService]
-    GAS -->|Klasifikasi Intent| AI[Google Gemini API]
-    GAS -->|Fallback Parser| Local[Regex Parser]
-    GAS -->|Catat Transaksi & Mutasi| Sheets[(Google Sheets\nDatabase Pribadi)]
-    GAS -->|Render Grafik Bulanan| QC[QuickChart API]
-    GAS -->|Kirim Balasan & Tombol Inline| TG
+    User[Pengguna Telegram] -->|Kirim Pesan / Tombol| TG[Telegram Bot API]
+    TG -->|Webhook HTTPS POST| GAS[Google Apps Script\nEngine & Concurrency Lock]
+    GAS -->|Ekstraksi Intent| AI[Google Gemini API]
+    GAS -->|Fallback Otomatis| Regex[Parser Regex Lokal]
+    GAS -->|Baca & Tulis Mutasi| Sheets[(Google Sheets\nDatabase Pribadi)]
+    GAS -->|Buat URL Grafik| QC[QuickChart API]
+    GAS -->|Kirim Balasan| TG
 ```
 
 ---
 
-## 📋 Skema Google Sheets
+## Struktur Tabel Google Spreadsheet
 
-LedgerFlow mengelola 4 lembar kerja (*sheets*) yang dibuat otomatis atau manual:
+Sistem membutuhkan empat lembar kerja pada Google Spreadsheet:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                       GOOGLE SPREADSHEET                    │
-├──────────────┬──────────────────────────────────────────────┤
-│ Sheet        │ Kolom Utama                                  │
-├──────────────┼──────────────────────────────────────────────┤
-│ Users        │ Chat ID, Username, Nama, Daily Budget,       │
-│              │ Persona, Created At, Default Akun            │
-├──────────────┼──────────────────────────────────────────────┤
-│ Akun         │ Chat ID, Nama Akun, Saldo Awal,              │
-│              │ Tanggal Mulai Saldo, Updated At, Catatan     │
-├──────────────┼──────────────────────────────────────────────┤
-│ Transaksi    │ ID Transaksi, Timestamp, Chat ID, Tipe,      │
-│              │ Akun, Akun Tujuan, Nominal, Kategori,        │
-│              │ Item, Alasan, Pesan Asli, Status, User       │
-├──────────────┼──────────────────────────────────────────────┤
-│ Pengeluaran  │ TimeStamp, Chat ID, Nominal, Kategori,       │
-│              │ Chat Asli, Chat Asli User, User,             │
-│              │ ID Transaksi, Akun, Status                   │
-└──────────────┴──────────────────────────────────────────────┘
-```
+| Nama Sheet | Fungsi | Kolom yang Digunakan |
+| :--- | :--- | :--- |
+| Users | Menyimpan profil dan batas anggaran pengguna | Chat ID, Username, Nama, Daily Budget, Persona, Created At, Default Akun |
+| Akun | Menyimpan daftar rekening/dompet dan titik saldo awal | Chat ID, Nama Akun, Saldo Awal, Tanggal Mulai Saldo, Updated At, Catatan |
+| Transaksi | Buku besar utama pencatatan seluruh mutasi | ID Transaksi, Timestamp, Chat ID, Tipe, Akun, Akun Tujuan, Nominal, Kategori, Item, Alasan, Pesan Asli, Status, User |
+| Pengeluaran | Sinkronisasi khusus untuk kebutuhan grafik dan rekap | TimeStamp, Chat ID, Nominal, Kategori, Chat Asli, Chat Asli User, User, ID Transaksi, Akun, Status |
 
 ---
 
-## 🚀 Panduan Pemasangan Cepat
+## Panduan Pemasangan
 
-### 1. Buat Google Spreadsheet
-1. Buka [Google Sheets](https://sheets.new) baru.
-2. Beri nama spreadsheet Anda (misal: `Pembukuan LedgerFlow`).
-3. Buat 4 sheet dengan nama: `Users`, `Akun`, `Transaksi`, dan `Pengeluaran`.
+### Langkah 1: Persiapan Lembar Kerja
+1. Buat berkas spreadsheet baru di Google Sheets.
+2. Buat empat tab sheet dengan nama persis: `Users`, `Akun`, `Transaksi`, dan `Pengeluaran`.
 
-### 2. Salin Kode ke Google Apps Script
-1. Di menu spreadsheet, klik **Ekstensi** > **Apps Script**.
-2. Hapus kode bawaan, lalu salin seluruh isi berkas [`script.js`](script.js) ke dalam editor.
-3. Buka **Project Settings** (ikon gerigi) > centang **"Show 'appsscript.json' manifest file in editor"**.
-4. Salin isi berkas [`appsscript.json`](appsscript.json) ke editor manifest.
+### Langkah 2: Pemasangan Skrip
+1. Buka menu spreadsheet, pilih **Ekstensi** lalu klik **Apps Script**.
+2. Salin seluruh isi berkas `script.js` pada repositori ini ke dalam editor kode.
+3. Buka **Project Settings** (ikon gerigi), centang opsi **Show "appsscript.json" manifest file in editor**.
+4. Salin konfigurasi dari berkas `appsscript.json` ke editor manifest.
 
-### 3. Konfigurasi Script Properties
+### Langkah 3: Pengaturan Kredensial
 Buka **Project Settings** > **Script Properties**, lalu tambahkan properti berikut:
 
-| Properti | Nilai / Keterangan | Wajib? |
+| Properti | Keterangan | Wajib / Opsional |
 | :--- | :--- | :--- |
-| `BOT_TOKEN` | Token bot Telegram dari [@BotFather](https://t.me/BotFather) | **Wajib** |
-| `GEMINI_API_KEY` | API Key dari [Google AI Studio](https://aistudio.google.com/) | Opsional *(disarankan)* |
-| `WEBAPP_URL` | URL deployment Web App Anda *(diisi setelah langkah 4)* | **Wajib** |
-| `SPREADSHEET_ID` | ID spreadsheet *(hanya wajib jika script tidak terikat langsung ke sheet)* | Opsional |
+| BOT_TOKEN | Token otentikasi bot dari Telegram @BotFather | Wajib |
+| GEMINI_API_KEY | Kunci akses API dari Google AI Studio | Opsional (Sangat disarankan) |
+| WEBAPP_URL | URL hasil deployment Web App (didapat pada Langkah 4) | Wajib |
+| SPREADSHEET_ID | ID unik spreadsheet (antara /d/ dan /edit pada URL sheet) | Wajib jika skrip dibuat standalone |
 
-*(Tips: Anda juga bisa menggunakan fungsi bantuan `setupScriptProperties()` di dalam skrip untuk mengisi nilai-nilai ini sekaligus).*
+Catatan: Tersedia juga fungsi bantuan `setupScriptProperties()` di dalam `script.js` untuk mengisi properti di atas langsung melalui eksekusi kode.
 
-### 4. Deploy sebagai Web App
-1. Klik tombol **Deploy** di pojok kanan atas > **New deployment**.
-2. Pilih jenis deployment: **Web app**.
-3. Konfigurasi:
-   - **Execute as**: `Me (email Anda)`
-   - **Who has access**: `Anyone` *(agar webhook Telegram dapat mengirimkan update)*
-4. Klik **Deploy** dan berikan otorisasi izin akun Google Anda.
-5. Salin **Web app URL** yang dihasilkan, lalu masukkan ke Script Properties `WEBAPP_URL`.
+### Langkah 4: Publikasi Web App
+1. Klik tombol **Deploy** di sudut kanan atas, lalu pilih **New deployment**.
+2. Pilih jenis deployment **Web app**.
+3. Atur konfigurasi:
+   - **Execute as**: Me (alamat email Anda).
+   - **Who has access**: Anyone.
+4. Klik **Deploy** dan setujui izin akses akun Google yang diminta.
+5. Salin URL Web App yang muncul, lalu simpan ke Script Property dengan nama `WEBAPP_URL`.
 
-### 5. Pasang Webhook & Trigger Bulanan
-1. Pada daftar fungsi di editor Apps Script, pilih fungsi `setWebhook` lalu klik **Run**.
-2. Periksa log eksekusi untuk memastikan respon Telegram: `"ok": true`.
-3. Pilih fungsi `pasangTriggerBulanan` lalu klik **Run** untuk mengaktifkan pengiriman rekap otomatis setiap tanggal 1 jam 08.00 pagi.
-
----
-
-## 💬 Contoh Penggunaan di Telegram
-
-```text
-Pengguna : Saldo awal tunai 500rb
-Bot      : 🏁 Titik Saldo Awal Ditetapkan!
-           • Akun: Tunai (Rp500.000)
-
-Pengguna : Makan nasi padang 25rb
-Bot      : ✅ Tercatat Rp25.000 · Makanan
-           📝 Item: nasi padang
-           💳 Saldo tercatat Tunai: Rp475.000
-           📊 🟢 Sisa budget harian: Rp75.000
-           [↩️ Undo] [⭐ Jadikan Tunai Default]
-
-Pengguna : Transfer BCA ke GoPay 100rb + admin 2500
-Bot      : 🔄 Transfer Tercatat! (Rp100.000)
-           📤 Dari BCA → 📥 Ke GoPay
-           🧾 Biaya Admin (Pengeluaran): Rp2.500
-           • Saldo BCA: Rp1.897.500
-           • Saldo GoPay: Rp150.000
-
-Pengguna : Saldo tunai sebenarnya 420rb
-Bot      : ⚖️ Konfirmasi Koreksi Saldo Tunai
-           • Tercatat: Rp475.000 | Sebenarnya: Rp420.000
-           • Penyesuaian: -Rp55.000
-           [✅ Konfirmasi Penyesuaian] [❌ Batal]
-```
+### Langkah 5: Registrasi Webhook dan Pemicu Otomatis
+1. Pada menu fungsi di editor Apps Script, pilih fungsi `setWebhook` lalu jalankan (Run). Periksa log untuk memastikan balasan Telegram menyatakan status berhasil (`ok: true`).
+2. Pilih fungsi `pasangTriggerBulanan` lalu jalankan (Run) agar rekapitulasi bulanan dikirim otomatis setiap tanggal 1 pagi.
 
 ---
 
-## 📖 Ringkasan Perintah Bot
+## Daftar Perintah dan Pola Pesan
 
-| Perintah | Fungsi | Contoh Parameter |
+### Perintah Garis Miring
+
+| Perintah | Penjelasan | Contoh Penggunaan |
 | :--- | :--- | :--- |
-| `/start` | Panduan awal & profil keuangan pengguna | `/start` |
-| `/saldo` | Cek saldo tercatat seluruh akun & total | `/saldo` |
-| `/setakun` | Atur akun pembayaran utama | `/setakun Tunai` atau `/setakun reset` |
-| `/undo` | Batalkan transaksi terakhir / spesifik | `/undo` atau `/undo TRX-241122...` |
-| `/edit` | Ubah nominal transaksi terakhir | `/edit 35rb` atau `/edit 35rb pakai BCA` |
-| `/setbudget` | Ubah target batas anggaran harian | `/setbudget 150k` |
-| `/setpersona` | Pilih gaya respons AI | `/setpersona satir` atau `/setpersona santai` |
-| `/rekap` | Rekap transaksi pengeluaran hari ini | `/rekap` |
-| `/bulan` | Grafik tren dan evaluasi bulanan | `/bulan` atau `/bulan 10-2026` |
+| `/start` | Membuka panduan awal dan profil anggaran pengguna | `/start` |
+| `/saldo` | Memeriksa rincian saldo tercatat tiap akun beserta totalnya | `/saldo` |
+| `/setakun` | Menentukan akun pembayaran default agar tidak perlu diketik berulang | `/setakun Tunai` atau `/setakun reset` |
+| `/undo` | Membatalkan transaksi aktif terakhir atau transaksi berdasarkan ID | `/undo` atau `/undo TRX-2611221015-123` |
+| `/edit` | Mengubah nilai nominal pada transaksi terakhir | `/edit 35rb` atau `/edit 35rb pakai BCA` |
+| `/setbudget` | Menetapkan target pagu anggaran pengeluaran per hari | `/setbudget 150k` |
+| `/setpersona` | Mengatur gaya respon asisten (satir atau santai) | `/setpersona satir` |
+| `/rekap` | Menampilkan catatan transaksi keluar hari ini dan sisa anggaran | `/rekap` |
+| `/bulan` | Mengirim evaluasi dan grafik visual pengeluaran bulanan | `/bulan` atau `/bulan 11-2026` |
+
+### Pola Kalimat Alami
+
+Pengguna dapat mengirim pesan langsung tanpa garis miring:
+- **Penetapan Saldo Awal**: `Saldo awal tunai 500rb` atau `Saldo awal BCA 2jt`
+- **Catat Pengeluaran**: `Makan siang 25rb pakai tunai` atau `Beli kopi 22k`
+- **Catat Pemasukan**: `Gaji masuk BCA 5jt` atau `Bonus freelance 750rb ke Mandiri`
+- **Transfer Antar Akun**: `Tarik tunai dari BCA 200rb`
+- **Transfer dengan Biaya Admin**: `Transfer BCA ke GoPay 100rb + admin 2500`
+- **Koreksi Fisik**: `Saldo tunai sebenarnya 420rb karena lupa catat parkir`
 
 ---
 
-## 🧪 Pengujian Unit Lokal
+## Pengujian Lokal
 
-Mesin parsing, rumus saldo, sanitasi HTML, dan proteksi callback Telegram dapat diuji secara lokal menggunakan Node.js tanpa membutuhkan runtime browser:
+Repositori ini menyertakan suite pengujian unit mandiri untuk memverifikasi logika parser bahasa, penanganan angka nominal, isolasi panjang data tombol Telegram, sanitasi HTML, dan formula saldo.
+
+Jalankan perintah berikut di terminal lokal:
 
 ```bash
-# Menjalankan seluruh pengujian unit
 npm test
 ```
 
-Hasil uji:
-- ✅ Normalisasi akun perbankan & e-wallet
-- ✅ Parser nominal Indonesia (`rb`, `ribu`, `k`, `jt`, `juta`, koma/titik)
-- ✅ Pemisahan otomatis pokok transfer dan biaya admin
-- ✅ Ekstraksi intent deterministik & fallback regex kategori
-- ✅ Jaminan panjang byte callback Telegram ($\le 64$ byte)
-- ✅ Sanitasi karakter HTML / XSS prevention
-- ✅ Formula aritmatika Saldo Tercatat:
-  $$\text{Saldo} = \text{Saldo Awal} + \text{Pemasukan} - \text{Pengeluaran} + \text{Transfer Masuk} - \text{Transfer Keluar} \pm \text{Penyesuaian}$$
+Seluruh pengujian dijalankan di lingkungan Node.js dengan mock terhadap objek global Google Apps Script.
 
 ---
 
-## 🛡️ Keamanan & Kredensial
+## Batasan dan Privasi
 
-1. **Jangan Pernah Mengunggah Token**: Berkas [`.gitignore`](.gitignore) telah dikonfigurasi untuk mengabaikan berkas cadangan lokal (`*.backup.js`), berkas `.env`, dan folder rahasia.
-2. **Kunci API di Script Properties**: Jangan menuliskan token bot Telegram atau Gemini API Key di dalam badan kode. Selalu gunakan antarmuka *Script Properties* Google Apps Script.
-3. **Rotasi Kredensial**: Jika token bot pernah terekspos ke publik atau ruang obrolan, segera buat token baru melalui `/revoke` di [@BotFather](https://t.me/BotFather).
+- **Bukan Integrasi Perbankan Otomatis**: Bot ini bekerja berdasarkan data transaksi yang dikirimkan oleh pengguna secara mandiri, bukan melalui pembacaan API mutasi perbankan otomatis.
+- **Kerahasiaan Kunci**: Berkas `.gitignore` sudah dikonfigurasi untuk mencegah file kredensial lokal dan file cadangan terunggah ke repositori publik. Selalu manfaatkan Script Properties untuk menyimpan data rahasia.
 
 ---
 
-## 📄 Lisensi
+## Lisensi
 
-Didistribusikan di bawah Lisensi **MIT**. Siapa saja dipersilakan untuk memakai, memodifikasi, dan mengembangkan repositori ini untuk keperluan pribadi maupun komunitas.
+Proyek ini dirilis di bawah lisensi terbuka MIT. Siapa pun diperbolehkan menggunakan, mempelajari, dan memodifikasi kode ini untuk keperluan pribadi maupun non-komersial.
